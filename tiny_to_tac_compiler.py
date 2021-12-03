@@ -1,9 +1,10 @@
 """
 Tree-walking compiler for the Tiny programming language. 
-Generates three-address code. Performs no error checking.
+Generates three-address code. Performs no error checking. No attempt to optimize output code.
 
 Myles Klapkowski, December 2021
 
+Code throughout and example by Kieran Herley, June 2020
 """
 
 from tiny_parser import *
@@ -31,7 +32,7 @@ class TinyCompiler:
         #             self.parse_tree = pickle.load(openfile)
         #         except EOFError:
         #             break
-        
+
         self.__varcount = 0
         self.__labcount = 0
     

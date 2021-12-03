@@ -3,6 +3,8 @@ Tree-Building Parser for Tiny programming language.
 Returns the root of the parse tree. No attempt to optimize tree.
 
 Myles Klapkowski, November 2021
+
+Code throughout and example by Kieran Herley, June 2020
 """
 
 from re import match

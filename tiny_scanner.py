@@ -1,3 +1,10 @@
+"""
+Scanner for Tiny programming language and helper class to tiny_parse.py.
+
+Myles Klapkowski, December 2021
+
+Code throughout and example by Kieran Herley, June 2020
+"""
 import re
 import sys
 import traceback
