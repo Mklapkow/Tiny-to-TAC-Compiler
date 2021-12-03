@@ -289,10 +289,11 @@ if __name__ == "__main__":
 
     fpath = "fact.tny"
 
+    outfilename = fpath[:len(fpath) - 4] + "_pt_kh.pkl"
+    outfile = open(fpath[:len(fpath) - 4] + "_pt_kh.pkl", "wb")
+
     parser = TinyParser(fpath)
     ptroot = parser.parse_program()
-    print("Parse tree:")
-    print("-" * 25)
-    ptroot.dump()
-    print("=" * 25)
-    print()
+    pickle.dump(ptroot, outfile)
+    outfile.close()
+

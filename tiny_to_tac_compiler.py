@@ -23,7 +23,6 @@ class TinyCompiler:
         """Create a compiler object for Tiny program with source at
         'sourcepath'.
         """
-
         with (open(filename, "rb")) as openfile:
             while True:
                 try:
@@ -56,7 +55,7 @@ class TinyCompiler:
         self.__codegen(root.children[1])
         
         if len(root.children) <= 2:
-            self.outfile.write("%s:" % skiptrue_label)
+            self.outfile.write("%s:\n" % skiptrue_label)
         else:
             skipfalse_label = self.__new_label()
             self.outfile.write("goto %s;\n" % skipfalse_label)
@@ -214,8 +213,7 @@ class TinyCompiler:
 
 if __name__ == "__main__":
 
-    filename = "readwrite_pt_kh.pkl"
+    filename = "fact_pt_kh.pkl"
     compiler = TinyCompiler(filename) 
     compiler.translate()
    
-
