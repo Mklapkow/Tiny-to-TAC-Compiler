@@ -37,7 +37,7 @@ class TinyScanner:
         self.__tokens.append("EOS")
 
         self.current = None
-        self.advance
+        self.advance()
 
     def advance(self):
         if self.has_more:
