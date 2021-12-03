@@ -24,7 +24,7 @@ class TinyCompiler:
         'sourcepath'.
         """
         
-        with (open("readwrite_pt_kh.pkl", "rb")) as openfile:
+        with (open("factorial_pt_kh.pkl", "rb")) as openfile:
             while True:
                 try:
                     self.parse_tree = pickle.load(openfile)
@@ -48,11 +48,11 @@ class TinyCompiler:
         conditvar = self.__new_var()
         e1var = self.__codegen_expression(root.children[0])
 
-        if len(root.children) == 1:
+        if len(root.children) <= 1:
             print("%s := %s;" % (conditvar, e1var))
         else:
-            relop = root.children[1].value
-            e2var = self.__codegen_expression(root.children[2])
+            relop = root.children[0].value
+            e2var = self.__codegen_expression(root.children[1])
             print("%s := %s %s %s;" % (conditvar, e1var, relop, e2var))
 
         return conditvar
@@ -62,7 +62,7 @@ class TinyCompiler:
        'root'.
         """
         skiptrue_label = self.__new_label()
-        conditvar = self.__codegen_condition(root.children[0])
+        conditvar = self.__codegen_expression(root.children[0])
         print("if (%s == 0) goto %s" % (conditvar, skiptrue_label))
         self.__codegen(root.children[1])
         
@@ -80,51 +80,77 @@ class TinyCompiler:
         """
         total_var = self.__new_var()
         print("%s := 0;" % total_var)
+        op = "*"
+        for c in root.children:
+            if c.label == 'simple_expr':
+                sevar = self.__codegen_simple_expr(c)
+                if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'comp':
+                    print("%s := %s %s %s;" % (total_var, total_var, op, sevar))
+                else:
+                    print("%s := %s;" % (total_var, sevar))
+            else:
+                op = c.children[0].value
+        return total_var
+
+    def __codegen_simple_expr(self, root):
+        """ Generate TAC for simple expression represented by subtree 'root'.
+        """
+        total_var = self.__new_var()
+        print("%s := 0;" % total_var)
         op = "+"
         for c in root.children:
-            if c.label == "term":
+            if c.label == 'term':
                 tvar = self.__codegen_term(c)
-                print()
-                print("%s := %s %s %s;" % (total_var, total_var, op, tvar))
+                if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'addop':
+                    print("%s := %s %s %s;" % (total_var, total_var, op, tvar))
+                else:
+                    print("%s := %s;" % (total_var, tvar))
             else:
-                op = c.value
+                op = c.children[0].value
+
         return total_var
 
     def __codegen_term(self, root):
         """ Generate TAC for subexpression represented by subtree 'root'.
         """
         total_var = self.__new_var()
-        print("%s := 1;" % total_var)
-        op = "*"
+        print("%s := 0;" % total_var)
+        op = "="
         for c in root.children:
-            if c.label == "factor":
+            if c.label == 'factor':
                 fvar = self.__codegen_factor(c)
-                print("%s := %s %s %s;" % (total_var, total_var, op, fvar))
+                if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'mulop':
+                    print("%s := %s %s %s;" % (total_var, total_var, op, fvar))
+                else:
+                    print("%s := %s;" % (total_var, fvar))
             else:
-                op = c.value
+                op = c.children[0].value
         return total_var
 
     def __codegen_factor(self, root):
         """ Generate TAC for subexpression represented by subtree 'root'.
         """
-        fval = root.value
-        if type(fval) == int:
-            var = self.__new_var()
-            print("%s := %d;" % (var, fval))
-            return var
-        elif type(fval) == str:
-            var = self.__new_var()
-            print("%s := %s;" % (var, fval))
-            return var
-        else:
-            exprvar = self.__codegen_expression(root.children[0])
-            return exprvar
+        for c in root.children:
+            if c.label == 'leaf':
+                fval = c.value
+                if type(fval) == int:
+                    var = self.__new_var()
+                    print("%s := %d;" % (var, fval))
+                    return var
+                elif type(fval) == str:
+                    var = self.__new_var()
+                    print("%s := %s;" % (var, fval))
+                    return var
+            else:
+                exprvar = self.__codegen_expression(root.children[0])
+                return exprvar
 
     def __codegen_read(self, root):
         """ Generate TAC for read statement represented by subtree 'root'.
         """
-        varname = root.value
-        print("%s := in;" % varname)
+        if len(root.children) >= 1 and root.children[0].label == 'leaf':
+            varname = root.children[0].value
+            print("%s := in;" % varname)
 
     def __codegen_write(self, root):
         """ Generate TAC for write statement represented by subtree 

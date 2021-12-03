@@ -33,7 +33,6 @@ class TinyParser:
 
         c = self.parse_statement()
         children = [c]
-
         while self.__scanner.current.kind in {"ID", "READ", "WRITE", 
         "IF", "REPEAT", "UNTIL"}:
             children.append(self.parse_statement())
