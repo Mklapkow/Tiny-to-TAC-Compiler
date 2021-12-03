@@ -5,6 +5,7 @@ Returns the root of the parse tree. No attempt to optimize tree.
 Myles Klapkowski, November 2021
 """
 
+from re import match
 from tiny_scanner import *
 from pt_node import *
 import sys
@@ -34,8 +35,8 @@ class TinyParser:
         c = self.parse_statement()
         children = [c]
         while self.__scanner.current.kind in {"ID", "READ", "WRITE", 
-        "IF", "REPEAT", "UNTIL"}:
-            children.append(self.parse_statement())
+        "IF", "REPEAT"}:
+            children.append(self.parse_statement()) 
 
         return PTNode("stmtseq", children)
     
@@ -58,7 +59,7 @@ class TinyParser:
             c = self.parse_assignstmt()
         elif self.__scanner.current.kind == "IF":
             c = self.parse_ifstmt()
-        elif self.__scanner.current.kind in {"REPEAT", "UNTIL"}:
+        elif self.__scanner.current.kind in "REPEAT":
             c = self.parse_repeatstmt()
         elif self.__scanner.current.kind == "READ":
             c = self.parse_readstmt()
@@ -71,10 +72,11 @@ class TinyParser:
             <assignstmt> -> 
                 ID := <exp>
         """
-        self.__scanner.log("Parsing <assignstmt> -> ID <exp>")
-        id = self.__scanner.match("ID")
+        self.__scanner.log("Parsing <assignstmt> -> ID := <exp>")
+        l = self.parse_leaf()
+        self.__scanner.match("ASSIGN")
         e = self.parse_exp()
-        return PTNode("assignstmt", [e], value = id)
+        return PTNode("assignstmt", [l,e])
 
 
     def parse_ifstmt(self):
@@ -110,9 +112,10 @@ class TinyParser:
         self.__scanner.log(
             "Parsing <repeatstmt> -> REPEAT <stmtseq> UNTIL <exp>"
             )
+       
         self.__scanner.match("REPEAT")
         s = self.parse_stmtseq()
-        self.__scanner.match("UNTIL")
+        self.__scanner.match("UNTIL") 
         e = self.parse_exp()
 
         return PTNode("repeatstmt", [s,e])
@@ -125,9 +128,8 @@ class TinyParser:
 
         self.__scanner.log("Parsing <readstmt> -> READ ID")
         self.__scanner.match("READ")
-        varname = self.__scanner.current.value
-        self.__scanner.match("ID")
-        return PTNode("readstmt", [], value = varname)
+        l = self.parse_leaf()
+        return PTNode("readstmt", [l])
 
     def parse_writestmt(self):
         """Parse tokens matching following productions:
@@ -137,7 +139,7 @@ class TinyParser:
         self.__scanner.log("Parsing <writestmt> -> WRITE <exp>")
         self.__scanner.match("WRITE")
         e = self.parse_exp()
-        return PTNode("write_stmt", [e])
+        return PTNode("writestmt", [e])
 
     def parse_exp(self):
         """Parse tokens matching following productions:
@@ -146,13 +148,13 @@ class TinyParser:
                 | <simple-expr>
         """
         self.__scanner.log("Parsing <exp> -> <simple-expr> <comp-op> <simple-expr> | <simple-expr>")
-        children = []
+        children = [self.parse_simple_expr()]
         if self.__scanner.current.kind in {"EQ",  "LT", "GT"}:
             r = self.parse_comp_op()
             children.append(r)
             e = self.parse_simple_expr()
             children.append(e)
-        children = [self.parse_simple_expr()]
+            return PTNode("exp", children)
         return PTNode("exp", children)
 
     def parse_simple_expr(self):
@@ -168,31 +170,27 @@ class TinyParser:
             children.append(a)
             t = self.parse_term()
             children.append(t)
-        return PTNode("simple-expr", children)    
+        return PTNode("simple_expr", children)    
 
 
     def parse_comp_op(self):
         """Parse tokens matching following productions:
-            <comp-op> -> LT | EQ | GT
+            <comp-op> -> <leaf> | <leaf | <leaf>
         """
-        self.__scanner.log("Parsing <comp-op> -> LT | EQ | GT")
-        r = PTNode("comp-op", [], value = self.__scanner.current.value)
-
-        if self.__scanner.current.kind in {"LT", "EQ", "GT"}:
-            self.__scanner.advance()
-        return r
+        self.__scanner.log("Parsing <comp-op> -> <leaf> | <leaf | <leaf>")
+        l = self.parse_leaf()
+        children = [l]
+        return PTNode("comp_op", children)
     
     def parse_addop(self):
         """Parse tokens matching following productions:
-            <addop> -> PLUS | MINUS
+            <addop> -> <leaf> | <leaf>
         """
 
-        self.__scanner.log("Parsing <addop> -> PLUSE | MINUS")
-        r = PTNode("addop", [], value=self.__scanner.current.value)
-
-        if self.__scanner.current.kind in {"PLUS", "MINUS"}:
-            self.__scanner.advance()
-        return r
+        self.__scanner.log("Parsing <addop> -> <leaf> | <leaf>")
+        l = self.parse_leaf()
+        children = [l]
+        return PTNode("addop", children)
     
     def parse_term(self):
         """Parse tokens matching following productions:
@@ -207,51 +205,87 @@ class TinyParser:
             children.append(m)
             f = self.parse_factor()
             children.append(f)
-        if self.__scanner.current.kind == "SEMI":
-            self.__scanner.advance()
-            self.parse_stmtseq()
-            return PTNode("semi")  
         return PTNode("term", children)    
     
     def parse_mulop(self):
         """Parse tokens matching following productions:
-            <mulop> -> TIMES | OVER
+            <mulop> -> <leaf> | <leaf>
         """
 
-        self.__scanner.log("Parsing <mulop> -> TIMES | OVER")
-        r = PTNode("mulop", [], value = self.__scanner.current.value)
-        if self.__scanner.current.kind in {"TIMES", "OVER"}:
-            self.__scanner.advance()
-        return r
+        self.__scanner.log("Parsing <mulop> -> <leaf | <leaf>")
+        l = self.parse_leaf()
+        children = [l]
+        return PTNode("mulop", children)
     
     def parse_factor(self):
         """Parse tokens matching following productions:
-            <factor> -> LPAREN <exp> RPAREN | INT | ID
+            <factor> -> <leaf> <exp> <leaf> | <leaf | <leaf>
         """
 
         self.__scanner.log(
-            "Parsing <factor> -> LPAREN <exp> RPAREN | INT | ID"
+            "Parsing <factor> -> <leaf> <exp> <leaf> | <leaf> | <leaf>"
         )
 
         if self.__scanner.current.kind == "LPAREN":
+            l = self.parse_leaf()
+            e = self.parse_exp()
+            l2 = self.parse_leaf()
+            return PTNode("factor", [l, e, l2])
+        elif self.__scanner.current.kind in {"ID", "INT"}:
+            l = self.parse_leaf()
+            return PTNode("factor", [l])
+        else:
+            self.__scanner.shriek("How did we even get here?")
+
+    def parse_leaf(self):
+        """Parse tokens matching following productions:
+            <leaf> -> ID | INT | TIMES | OVER
+        """
+
+        self.__scanner.log(
+            "Parsing <leaf> -> ID | INT | TIMES | "
+            "OVER | PLUS | MINUS"
+            "GT | LT| EQ"
+        )
+
+        
+        if self.__scanner.current.kind in {"TIMES", "OVER"}:
+            val = self.__scanner.current.value
+            self.__scanner.advance()
+            return PTNode("mulop", [], val)
+
+        elif self.__scanner.current.kind in {"LT", "EQ", "GT"}:
+            val = self.__scanner.current.value
+            self.__scanner.advance()
+            return PTNode("comp-op", [], val)
+
+        elif self.__scanner.current.kind in {"PLUS", "MINUS"}:
+            val = self.__scanner.current.value
+            self.__scanner.advance()
+            return PTNode("addop", [], val)
+
+        elif self.__scanner.current.kind == "LPAREN":
             self.__scanner.match("LPAREN")
             e = self.parse_exp()
             self.__scanner.match("RPAREN")
-            return PTNode("factor", [e])
+            return PTNode("leaf", [e])
+
         elif self.__scanner.current.kind in {"ID", "INT"}:
             val = self.__scanner.current.value
             self.__scanner.advance()
-            return PTNode("factor", [], val)
-        elif self.__scanner.current.kind == "SEMI":
-            self.__scanner.advance()
-            self.parse_stmtseq()
-            return PTNode("semi")
+            return PTNode("leaf", [], val)
+
         else:
             self.__scanner.shriek("How did we even get here?")
+
+
+
+
+
     
 if __name__ == "__main__":
 
-    fpath = "readwrite.tny"
+    fpath = "onetoten.tny"
 
     parser = TinyParser(fpath)
     ptroot = parser.parse_program()

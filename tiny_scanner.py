@@ -7,17 +7,17 @@ import traceback
 TOKENS_RE = re.compile(r"[a-z]+"
                        r"|[0-9]+"
                        r"|[(){}+*/;\-]"
-                       r"|=|<=|<|>=|>")
+                       r"|=|<=|<|>=|>|:=")
 
 #Define TINY's reserved words.
 RESERVED_WORDS = {
     "if" : "IF", "then" : "THEN", "else" : "ELSE", 
     "end" : "END", "repeat" : "REPEAT", "until" : "UNTIL",
-    "write" : "WRITE", "EOS" : "EOS"
+    "write" : "WRITE", "read" : "READ", "EOS" : "EOS"
 }
 #Define TINY's symbols.
 SYMBOLS = {
-    "(" : "RPAREN", ")" : "LPAREN", "+" : "PLUS", "-" : "MINUS",
+    ":=" : "ASSIGN", "(" : "RPAREN", ")" : "LPAREN", "+" : "PLUS", "-" : "MINUS",
     "*" : "TIMES", "/" : "OVER", "=" : "EQ", ";" : "SEMI", 
     "<" : "GT", ">" : "LT", "<=" : "LTOEQ", ">=" : "GTOEQ"}
     
