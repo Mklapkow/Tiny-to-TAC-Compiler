@@ -4,10 +4,6 @@ Generates three-address code. Performs no error checking.
 
 Myles Klapkowski, December 2021
 
-To Do:
-1) build out compiler infastructure based on kroc compiler
-2) add tiny components and test code
-
 """
 
 from tiny_parser import *
@@ -42,28 +38,13 @@ class TinyCompiler:
         self.__codegen(self.parse_tree)
         print("halt;")
 
-    def __codegen_if(self, root):
-        """ Generate TAC for if statement represented by subtree 'root'.
-        """
-        conditvar = self.__new_var()
-        e1var = self.__codegen_expression(root.children[0])
-
-        if len(root.children) <= 1:
-            print("%s := %s;" % (conditvar, e1var))
-        else:
-            relop = root.children[0].value
-            e2var = self.__codegen_expression(root.children[1])
-            print("%s := %s %s %s;" % (conditvar, e1var, relop, e2var))
-
-        return conditvar
-
     def __codegen_selection(self, root):
         """ Generate TAC for if statement represented by subtree 
        'root'.
         """
         skiptrue_label = self.__new_label()
         conditvar = self.__codegen_expression(root.children[0])
-        print("if (%s == 0) goto %s" % (conditvar, skiptrue_label))
+        print("if (%s) goto %s" % (conditvar, skiptrue_label))
         self.__codegen(root.children[1])
         
         if len(root.children) <= 2:
@@ -80,11 +61,11 @@ class TinyCompiler:
         """
         total_var = self.__new_var()
         print("%s := 0;" % total_var)
-        op = "*"
+        op = "="
         for c in root.children:
             if c.label == 'simple_expr':
-                sevar = self.__codegen_simple_expr(c)
-                if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'comp':
+                sevar = self.__codegen_simple_expr(c)   
+                if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'comp_op':
                     print("%s := %s %s %s;" % (total_var, total_var, op, sevar))
                 else:
                     print("%s := %s;" % (total_var, sevar))
@@ -115,7 +96,7 @@ class TinyCompiler:
         """
         total_var = self.__new_var()
         print("%s := 0;" % total_var)
-        op = "="
+        op = "*"
         for c in root.children:
             if c.label == 'factor':
                 fvar = self.__codegen_factor(c)
@@ -163,9 +144,10 @@ class TinyCompiler:
         """ Generate TAC for assignment statement represented by subtree 
         'root'.
         """
-        destvar = root.value
-        rhsvar = self.__codegen_expression(root.children[0])
-        print("%s := %s;" % (destvar, rhsvar))
+        if len(root.children) >= 1 and root.children[0].label == 'leaf':
+            destvar = root.children[0].value
+            rhsvar = self.__codegen_expression(root.children[1])
+            print("%s := %s;" % (destvar, rhsvar))
 
     def __new_var(self):
         """ Generate and return fresh temporray variable name.
@@ -187,10 +169,11 @@ class TinyCompiler:
         bottom_label = self.__new_label()
 
         print("%s:" % top_label)
-        conditvar = self.__codegen_if(root.children[0])
-        print("if (%s == 0) goto %s" % (conditvar, bottom_label))
+        self.__codegen_statement_seq(root.children[0])
+        conditvar = self.__codegen_expression(root.children[1])
+        print("if (%s) goto %s" % (conditvar, bottom_label))
 
-        self.__codegen(root.children[1])
+        # self.__codegen(root.children[1])
         print("goto %s" % top_label)
         print("%s:" % bottom_label)
 
@@ -207,7 +190,7 @@ class TinyCompiler:
         """
         label = root.label
         children = root.children
-        value = root.value
+
 
         actions = {
         "ifstmt" : self.__codegen_selection,
