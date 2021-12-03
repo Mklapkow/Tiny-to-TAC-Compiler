@@ -18,32 +18,33 @@ class TinyCompiler:
     """
     Uncomment code and comment out equivalent to use pre-parsed pickle file.
     """
-    # def __init__(self):
 
-    def __init__(self, sourcepath):#Comment out when using pickle file
+    def __init__(self, filename):
         """Create a compiler object for Tiny program with source at
         'sourcepath'.
         """
-        self.parse_tree = TinyParser(sourcepath).parse_program() #Comment out when using pickle file
 
-        # with (open("factorial_pt_kh.pkl", "rb")) as openfile: #Uncomment when using pickle file
-        #     while True:
-        #         try:
-        #             self.parse_tree = pickle.load(openfile)
-        #         except EOFError:
-        #             break
+        with (open(filename, "rb")) as openfile:
+            while True:
+                try:
+                    self.parse_tree = pickle.load(openfile)
+                except EOFError:
+                    break
 
         self.__varcount = 0
         self.__labcount = 0
+        self.outfilename = filename[:len(filename)-3] + "tac"
     
     def translate(self):
         """ Generate three-address code for the Tiny program represented
         by the parse-tree name 'parse_tree'. Output appears in standard
         output. 
         """
+        
+        self.outfile = open(self.outfilename, "w")
         self.__varcount, self.__labcount = 0, 0
         self.__codegen(self.parse_tree)
-        print("halt;")
+        self.outfile.write("halt;")
 
     def __codegen_selection(self, root):
         """ Generate TAC for if statement represented by subtree 
@@ -51,31 +52,31 @@ class TinyCompiler:
         """
         skiptrue_label = self.__new_label()
         conditvar = self.__codegen_expression(root.children[0])
-        print("if (%s) goto %s" % (conditvar, skiptrue_label))
+        self.outfile.write("if (%s) goto %s\n" % (conditvar, skiptrue_label))
         self.__codegen(root.children[1])
         
         if len(root.children) <= 2:
-            print("%s:" % skiptrue_label)
+            self.outfile.write("%s:" % skiptrue_label)
         else:
             skipfalse_label = self.__new_label()
-            print("goto %s;" % skipfalse_label)
-            print("%s:" % skiptrue_label)
+            self.outfile.write("goto %s;\n" % skipfalse_label)
+            self.outfile.write("%s:\n" % skiptrue_label)
             self.__codegen(root.children[2])
-            print("%s:" % skipfalse_label)
+            self.outfile.write("%s:\n" % skipfalse_label)
 
     def __codegen_expression(self, root):
         """ Generate TAC for expression represented by subtree 'root'.
         """
         total_var = self.__new_var()
-        print("%s := 0;" % total_var)
+        self.outfile.write("%s := 0;\n" % total_var)
         op = "="
         for c in root.children:
             if c.label == 'simple_expr':
                 sevar = self.__codegen_simple_expr(c)   
                 if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'comp_op':
-                    print("%s := %s %s %s;" % (total_var, total_var, op, sevar))
+                    self.outfile.write("%s := %s %s %s;\n" % (total_var, total_var, op, sevar))
                 else:
-                    print("%s := %s;" % (total_var, sevar))
+                    self.outfile.write("%s := %s;\n" % (total_var, sevar))
             else:
                 op = c.children[0].value
         return total_var
@@ -84,15 +85,15 @@ class TinyCompiler:
         """ Generate TAC for simple expression represented by subtree 'root'.
         """
         total_var = self.__new_var()
-        print("%s := 0;" % total_var)
+        self.outfile.write("%s := 0;\n" % total_var)
         op = "+"
         for c in root.children:
             if c.label == 'term':
                 tvar = self.__codegen_term(c)
                 if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'addop':
-                    print("%s := %s %s %s;" % (total_var, total_var, op, tvar))
+                    self.outfile.write("%s := %s %s %s;\n" % (total_var, total_var, op, tvar))
                 else:
-                    print("%s := %s;" % (total_var, tvar))
+                    self.outfile.write("%s := %s;\n" % (total_var, tvar))
             else:
                 op = c.children[0].value
 
@@ -102,15 +103,15 @@ class TinyCompiler:
         """ Generate TAC for subexpression represented by subtree 'root'.
         """
         total_var = self.__new_var()
-        print("%s := 0;" % total_var)
+        self.outfile.write("%s := 0;\n" % total_var)
         op = "*"
         for c in root.children:
             if c.label == 'factor':
                 fvar = self.__codegen_factor(c)
                 if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'mulop':
-                    print("%s := %s %s %s;" % (total_var, total_var, op, fvar))
-                # else:
-                    print("%s := %s;" % (total_var, fvar))
+                    self.outfile.write("%s := %s %s %s;\n" % (total_var, total_var, op, fvar))
+                else:
+                    self.outfile.write("%s := %s;\n" % (total_var, fvar))
             else:
                 op = c.children[0].value
         return total_var
@@ -123,11 +124,11 @@ class TinyCompiler:
                 fval = c.value
                 if type(fval) == int:
                     var = self.__new_var()
-                    print("%s := %d;" % (var, fval))
+                    self.outfile.write("%s := %d;\n" % (var, fval))
                     return var
                 elif type(fval) == str:
                     var = self.__new_var()
-                    print("%s := %s;" % (var, fval))
+                    self.outfile.write("%s := %s;\n" % (var, fval))
                     return var
             else:
                 exprvar = self.__codegen_expression(root.children[0])
@@ -138,14 +139,14 @@ class TinyCompiler:
         """
         if len(root.children) >= 1 and root.children[0].label == 'leaf':
             varname = root.children[0].value
-            print("%s := in;" % varname)
+            self.outfile.write("%s := in;\n" % varname)
 
     def __codegen_write(self, root):
         """ Generate TAC for write statement represented by subtree 
         'root'.
         """
         exprvar = self.__codegen_expression(root.children[0])
-        print("out := %s;" % exprvar)
+        self.outfile.write("out := %s;\n" % exprvar)
     
     def __codegen_assign(self, root):
         """ Generate TAC for assignment statement represented by subtree 
@@ -154,7 +155,7 @@ class TinyCompiler:
         if len(root.children) >= 1 and root.children[0].label == 'leaf':
             destvar = root.children[0].value
             rhsvar = self.__codegen_expression(root.children[1])
-            print("%s := %s;" % (destvar, rhsvar))
+            self.outfile.write("%s := %s;\n" % (destvar, rhsvar))
 
     def __new_var(self):
         """ Generate and return fresh temporray variable name.
@@ -175,13 +176,13 @@ class TinyCompiler:
         top_label = self.__new_label()
         bottom_label = self.__new_label()
 
-        print("%s:" % top_label)
+        self.outfile.write("%s:\n" % top_label)
         self.__codegen_statement_seq(root.children[0])
         conditvar = self.__codegen_expression(root.children[1])
-        print("if (%s) goto %s" % (conditvar, bottom_label))
+        self.outfile.write("if (%s) goto %s\n" % (conditvar, bottom_label))
 
-        print("goto %s" % top_label)
-        print("%s:" % bottom_label)
+        self.outfile.write("goto %s\n" % top_label)
+        self.outfile.write("%s:\n" % bottom_label)
 
     def __codegen_statement_seq(self, root):
         """ Generate TAC for statement sequence represented by subtree 
@@ -213,14 +214,8 @@ class TinyCompiler:
 
 if __name__ == "__main__":
 
-    fpath = "fact.tny" #Change this to compile a different file. Comment out when using pickle file
-    compiler = TinyCompiler(fpath) #Comment out when using pickle file
-
-    # compiler = TinyCompiler() #Uncomment when using pickle file
-
-    print("Compiler output:")
-    print("-" * 25)
+    filename = "readwrite_pt_kh.pkl"
+    compiler = TinyCompiler(filename) 
     compiler.translate()
-    print("=" * 25)
-    print()
+   
 
