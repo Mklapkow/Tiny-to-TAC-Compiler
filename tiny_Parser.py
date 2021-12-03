@@ -285,7 +285,7 @@ class TinyParser:
     
 if __name__ == "__main__":
 
-    fpath = "onetoten.tny"
+    fpath = "fact.tny"
 
     parser = TinyParser(fpath)
     ptroot = parser.parse_program()
