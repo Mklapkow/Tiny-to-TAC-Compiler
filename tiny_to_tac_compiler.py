@@ -17,18 +17,21 @@ class TinyCompiler:
     """
     Uncomment code and comment out equivalent to use pre-parsed pickle file.
     """
-    def __init__(self):
-    # def __init__(self, sourcepath):#Comment out when using pickle file
+    # def __init__(self):
+
+    def __init__(self, sourcepath):#Comment out when using pickle file
         """Create a compiler object for Tiny program with source at
         'sourcepath'.
         """
-        # self.parse_tree = TinyParser(sourcepath).parse_program() #Comment out when using pickle file
-        with (open("factorial_pt_kh.pkl", "rb")) as openfile:
-            while True:
-                try:
-                    self.parse_tree = pickle.load(openfile)
-                except EOFError:
-                    break
+        self.parse_tree = TinyParser(sourcepath).parse_program() #Comment out when using pickle file
+
+        # with (open("factorial_pt_kh.pkl", "rb")) as openfile: #Uncomment when using pickle file
+        #     while True:
+        #         try:
+        #             self.parse_tree = pickle.load(openfile)
+        #         except EOFError:
+        #             break
+        
         self.__varcount = 0
         self.__labcount = 0
     
@@ -105,7 +108,7 @@ class TinyCompiler:
                 fvar = self.__codegen_factor(c)
                 if len(root.children) > 2 and c == root.children[2] and root.children[1].label == 'mulop':
                     print("%s := %s %s %s;" % (total_var, total_var, op, fvar))
-                else:
+                # else:
                     print("%s := %s;" % (total_var, fvar))
             else:
                 op = c.children[0].value
@@ -176,7 +179,6 @@ class TinyCompiler:
         conditvar = self.__codegen_expression(root.children[1])
         print("if (%s) goto %s" % (conditvar, bottom_label))
 
-        # self.__codegen(root.children[1])
         print("goto %s" % top_label)
         print("%s:" % bottom_label)
 
@@ -210,9 +212,11 @@ class TinyCompiler:
 
 if __name__ == "__main__":
 
-    # fpath = "fact.tny" #Change this to compile a different file. Comment out when using pickle file
-    # compiler = TinyCompiler(fpath) #Comment out when using pickle file
-    compiler = TinyCompiler()
+    fpath = "fact.tny" #Change this to compile a different file. Comment out when using pickle file
+    compiler = TinyCompiler(fpath) #Comment out when using pickle file
+
+    # compiler = TinyCompiler() #Uncomment when using pickle file
+
     print("Compiler output:")
     print("-" * 25)
     compiler.translate()
